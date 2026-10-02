@@ -345,7 +345,45 @@ namespace Modless
                     trans.Commit();
                 }
             });
+        }
 
+        // 1 - 기둥 생성
+        private void button4_Click(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                XYZ ppp1 = new XYZ(6000, 0, 0) / 304.8;
+                XYZ ppp2 = new XYZ(10000, 0, 0) / 304.8;
+                XYZ ppp3 = new XYZ(10000, 4000, 0) / 304.8;
+                XYZ ppp4 = new XYZ(6000, 4000, 0) / 304.8;
+
+                List<XYZ> points2 = new List<XYZ>();
+                points2.Add(ppp1);
+                points2.Add(ppp2);
+                points2.Add(ppp3);
+                points2.Add(ppp4);
+
+                FilteredElementCollector col = new FilteredElementCollector(doc);
+                col.OfCategory(BuiltInCategory.OST_StructuralColumns);
+                col.OfClass(typeof(FamilySymbol));
+                FamilySymbol fs = col.FirstElement() as FamilySymbol;
+
+                Level level = doc.ActiveView.GenLevel;
+                ElementId levelid = level.Id;
+
+                double ceilingheight = 3000;
+
+                using (Transaction trans = new Transaction(doc, "Generate Column"))
+                {
+                    trans.Start();
+                    fs.Activate();
+                    FamilyInstance fi = doc.Create.NewFamilyInstance(points2, fs, level, StructuralType.Column);
+                    Parameter param = c.get_Parameter(BuiltInParameter.CEILING_HEIGHTABOVELEVEL_PARAM);
+                    param.Set(ceilingheight / 304.8);
+
+                    trans.Commit();
+                }
+            });
         }
 
 

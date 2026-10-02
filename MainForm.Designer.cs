@@ -68,6 +68,7 @@ namespace Modless
             button4.TabIndex = 11;
             button4.Text = "기둥 생성";
             button4.UseVisualStyleBackColor = true;
+            button4.Click += button4_Click;
             // 
             // button3
             // 
