@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\garde\\Downloads\\Modless\\Modless.csproj",
+      "projectUniqueName": "C:\\Users\\garde\\OneDrive\\바탕 화면\\Modless\\Modless.csproj",
       "projectName": "Modless",
-      "projectPath": "C:\\Users\\garde\\Downloads\\Modless\\Modless.csproj",
+      "projectPath": "C:\\Users\\garde\\OneDrive\\바탕 화면\\Modless\\Modless.csproj",
       "packagesPath": "C:\\Users\\garde\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\garde\\Downloads\\Modless\\obj\\",
+      "outputPath": "C:\\Users\\garde\\OneDrive\\바탕 화면\\Modless\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\garde\\AppData\\Roaming\\NuGet\\NuGet.Config",

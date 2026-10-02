@@ -1,22 +1,22 @@
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
-using Autodesk.Revit.UI.Selection;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
-
-using System.Text;
+using Autodesk.Revit.UI;
+using Autodesk.Revit.UI.Selection;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Net.Mail;
+using System.Text;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 // WinForms 와 Revit API 에 같은 이름이 있는 클래스는 어느 쪽을 쓸지 지정합니다.
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using System.Linq;
 
 namespace Modless
 {
@@ -151,9 +151,571 @@ namespace Modless
             base.OnFormClosed(e);
         }
 
+
+
+        // 전역변수
+        // 유형
+        public static string _floorTypeSelect = "";
+        public static string _wallTypeSelect = "";
+        public static string _ceilingTypeSelect = "";
+        // 높이
+        public static string _wallHeightInput = "";
+        public static string _ceilingHeightInput = "";
+        // 레벨
+        public static string _bottomLvStr = "";
+        public static string _topLvStr = "";
+
+        // Select Item 채우기
         private void MainForm_Load(object sender, EventArgs e)
         {
+            RunRevit((uidoc, doc) =>
+            {
+                FilteredElementCollector colFloor = new FilteredElementCollector(doc);
+                colFloor.OfCategory(BuiltInCategory.OST_Floors);
+                colFloor.OfClass(typeof(FloorType));
 
+                foreach (FloorType item in colFloor)
+                {
+                    string name = item.Name;
+                    comboBox1.Items.Add(name);
+                }
+
+                FilteredElementCollector colWall = new FilteredElementCollector(doc);
+                colWall.OfCategory(BuiltInCategory.OST_Walls);
+                colWall.OfClass(typeof(WallType));
+
+                foreach (WallType item in colWall)
+                {
+                    string name = item.Name;
+                    comboBox2.Items.Add(name);
+                }
+
+                FilteredElementCollector colCeiling = new FilteredElementCollector(doc);
+                colCeiling.OfCategory(BuiltInCategory.OST_Ceilings);
+                colCeiling.OfClass(typeof(CeilingType));
+
+                foreach (CeilingType item in colCeiling)
+                {
+                    string name = item.Name;
+                    comboBox3.Items.Add(name);
+                }
+
+                FilteredElementCollector colLevel = new FilteredElementCollector(doc);
+                colLevel.OfClass(typeof(Level));
+
+                foreach (Level item in colLevel)
+                {
+                    string name = item.Name;
+                    comboBox7.Items.Add(name);
+                    comboBox6.Items.Add(name);
+                }
+            });
+        }
+
+        // 1 - 바닥 생성
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                XYZ ppp1 = new XYZ(6000, 0, 0) / 304.8;
+                XYZ ppp2 = new XYZ(10000, 0, 0) / 304.8;
+                XYZ ppp3 = new XYZ(10000, 4000, 0) / 304.8;
+                XYZ ppp4 = new XYZ(6000, 4000, 0) / 304.8;
+
+                List<XYZ> points2 = new List<XYZ>();
+                points2.Add(ppp1);
+                points2.Add(ppp2);
+                points2.Add(ppp3);
+                points2.Add(ppp4);
+
+                IList<CurveLoop> cls1 = new List<CurveLoop>();
+
+                CurveLoop lp2 = Utils.GetCurveLoop(points2);
+                cls1.Add(lp2);
+
+                FilteredElementCollector col = new FilteredElementCollector(doc);
+                col.OfCategory(BuiltInCategory.OST_Floors);
+                col.OfClass(typeof(FloorType));
+                FloorType ft = col.FirstElement() as FloorType;
+
+                ElementId floorid = ft.Id;
+
+                Level level = doc.ActiveView.GenLevel;
+                ElementId levelid = level.Id;
+
+                using (Transaction trans = new Transaction(doc, "Generate Floor"))
+                {
+                    trans.Start();
+                    Floor f = Floor.Create(doc, cls1, floorid, levelid);
+                    trans.Commit();
+                }
+            });
+
+        }
+
+        // 1 - 벽 생성
+        private void button2_Click(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                XYZ ppp1 = new XYZ(6000, 0, 0) / 304.8;
+                XYZ ppp2 = new XYZ(10000, 0, 0) / 304.8;
+                XYZ ppp3 = new XYZ(10000, 4000, 0) / 304.8;
+                XYZ ppp4 = new XYZ(6000, 4000, 0) / 304.8;
+
+                List<XYZ> points2 = new List<XYZ>();
+                points2.Add(ppp1);
+                points2.Add(ppp2);
+                points2.Add(ppp3);
+                points2.Add(ppp4);
+
+                IList<CurveLoop> cls1 = new List<CurveLoop>();
+
+                CurveLoop lp2 = Utils.GetCurveLoop(points2);
+                cls1.Add(lp2);
+
+                FilteredElementCollector col = new FilteredElementCollector(doc);
+                col.OfCategory(BuiltInCategory.OST_Walls);
+                col.OfClass(typeof(WallType));
+                WallType wt = col.FirstElement() as WallType;
+
+                ElementId wallid = wt.Id;
+
+                Level level = doc.ActiveView.GenLevel;
+                ElementId levelid = level.Id;
+
+                double wallheight = 3000;
+
+                using (Transaction trans = new Transaction(doc, "CreateWall"))
+                {
+                    trans.Start();
+                    foreach (CurveLoop loop in cls1)
+                    {
+                        foreach (Curve c in loop)
+                        {
+                            Wall wall = Wall.Create(doc, c, wt.Id, level.Id, wallheight / 304.8, 0, false, true);
+
+                        }
+                    }
+                    trans.Commit();
+                }
+            });
+        }
+
+        // 1 - 천장 생성
+        private void button3_Click_(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                XYZ ppp1 = new XYZ(6000, 0, 0) / 304.8;
+                XYZ ppp2 = new XYZ(10000, 0, 0) / 304.8;
+                XYZ ppp3 = new XYZ(10000, 4000, 0) / 304.8;
+                XYZ ppp4 = new XYZ(6000, 4000, 0) / 304.8;
+
+                List<XYZ> points2 = new List<XYZ>();
+                points2.Add(ppp1);
+                points2.Add(ppp2);
+                points2.Add(ppp3);
+                points2.Add(ppp4);
+
+                IList<CurveLoop> cls1 = new List<CurveLoop>();
+
+                CurveLoop lp2 = Utils.GetCurveLoop(points2);
+                cls1.Add(lp2);
+
+                FilteredElementCollector col = new FilteredElementCollector(doc);
+                col.OfCategory(BuiltInCategory.OST_Ceilings);
+                col.OfClass(typeof(CeilingType));
+                CeilingType ct = col.FirstElement() as CeilingType;
+
+                ElementId ceilingid = ct.Id;
+
+                Level level = doc.ActiveView.GenLevel;
+                ElementId levelid = level.Id;
+
+                double ceilingheight = 3000;
+
+                using (Transaction trans = new Transaction(doc, "Generate Ceiling"))
+                {
+                    trans.Start();
+                    Ceiling c = Ceiling.Create(doc, cls1, ceilingid, levelid);
+                    Parameter param = c.get_Parameter(BuiltInParameter.CEILING_HEIGHTABOVELEVEL_PARAM);
+                    param.Set(ceilingheight / 304.8);
+
+                    trans.Commit();
+                }
+            });
+
+        }
+
+
+        // 선택 유형을 string으로 반환
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _floorTypeSelect = comboBox1.SelectedItem.ToString();
+        }
+
+        private void comboBox2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _wallTypeSelect = comboBox2.SelectedItem.ToString();
+        }
+
+        private void comboBox3_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _ceilingTypeSelect = comboBox3.SelectedItem.ToString();
+        }
+
+        // 입력 높이를 저장
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            _wallHeightInput = textBox1.Text;
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+            _ceilingHeightInput = textBox2.Text;
+        }
+
+        // 선택 레벨을 string으로 반환
+        private void comboBox7_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _bottomLvStr = comboBox7.SelectedItem.ToString();
+        }
+
+        private void comboBox6_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _topLvStr = comboBox6.SelectedItem.ToString();
+        }
+
+        // 2 - 룸 마감 - 룸 선택
+        public class RoomFilter : ISelectionFilter
+        {
+            public bool AllowElement(Element elem)
+            {
+                return elem is Room;
+            }
+
+            public bool AllowReference(Reference reference, XYZ position)
+            {
+                return false;
+            }
+        }
+
+        // 2 - 룸 마감 - 바닥 생성
+        private void button8_Click(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                IList<Reference> refs = uidoc.Selection.PickObjects(Autodesk.Revit.UI.Selection.ObjectType.Element, new RoomFilter(), "룸을 선택하세요.");
+
+                foreach (Reference item in refs)
+                {
+                    Room r = (Room)doc.GetElement(item);
+
+                    // 룸의 SL과 3D View 찾기
+                    FilteredElementCollector col3D = new FilteredElementCollector(doc);
+                    col3D.OfClass(typeof(View3D));
+
+                    View3D v3d = null;
+                    foreach (View3D v in col3D)
+                    {
+                        if (v.IsTemplate == false)
+                        {
+                            v3d = v;
+                            break;
+                        }
+                    }
+                    if (v3d == null)
+                    {
+                        TaskDialog.Show("경고", "3D뷰를 찾을 수 없습니다.");
+                        return;
+                    }
+
+                    ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Floors);
+                    ReferenceIntersector ri = new ReferenceIntersector(filter, FindReferenceTarget.Element, v3d);
+                    LocationPoint lp = r.Location as LocationPoint;
+                    XYZ sp = new XYZ(lp.Point.X, lp.Point.Y, lp.Point.Z + 1200 / 304.8);
+                    ReferenceWithContext rwc = ri.FindNearest(sp, -XYZ.BasisZ);
+
+                    double hitZ = 0;
+                    if (rwc != null)
+                    {
+                        Reference r1 = rwc.GetReference();
+                        XYZ hit = r1.GlobalPoint;
+                        hitZ = hit.Z;
+                    }
+
+                    SpatialElementBoundaryOptions opt = new SpatialElementBoundaryOptions();
+                    opt.SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish;
+
+                    IList<IList<BoundarySegment>> loops = r.GetBoundarySegments(opt);
+
+                    List<CurveLoop> cls = new List<CurveLoop>();
+                    foreach (IList<BoundarySegment> loop in loops)
+                    {
+                        CurveLoop cl = new CurveLoop();
+                        foreach (BoundarySegment bs in loop)
+                        {
+                            Curve c = bs.GetCurve();
+                            cl.Append(c);
+                        }
+                        cls.Add(cl);
+                    }
+
+                    Level level = Utils.FindLevel(_bottomLvStr, doc);
+                    if (level == null)
+                    {
+                        TaskDialog.Show("경고", "레벨을 선택해 주세요.");
+                        return;
+                    }
+
+                    double floorTHK = 0;
+                    {
+                        FloorType ft = Utils.FindFloorType(_floorTypeSelect, doc);
+                        if (ft == null)
+                        {
+                            TaskDialog.Show("경고", "유형을 찾을 수 없습니다.");
+                            return;
+                        }
+                        Parameter param = ft.get_Parameter(BuiltInParameter.FLOOR_ATTR_DEFAULT_THICKNESS_PARAM);
+                        if (param == null)
+                        {
+                            TaskDialog.Show("경고", "두께를 찾을 수 없습니다.");
+                            return;
+                        }
+
+                        floorTHK = param.AsDouble();
+
+                        using (Transaction trans = new Transaction(doc, "바닥 마감을 생성합니다."))
+                        {
+                            trans.Start();
+                            Floor f = Floor.Create(doc, cls, ft.Id, level.Id);
+                            Parameter upParam = f.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM);
+                            if (upParam != null)
+                            {
+                                upParam.Set(floorTHK);
+                            }
+                            trans.Commit();
+                        }
+
+                    }
+                }
+            });
+        }
+
+        // 2 - 룸 마감 - 벽 생성
+        private void button7_Click(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                IList<Reference> refs = uidoc.Selection.PickObjects(Autodesk.Revit.UI.Selection.ObjectType.Element, new RoomFilter(), "룸을 선택하세요.");
+
+                foreach (Reference item in refs)
+                {
+                    Room r = (Room)doc.GetElement(item);
+
+                    // 룸의 SL과 3D View 찾기
+                    FilteredElementCollector col3D = new FilteredElementCollector(doc);
+                    col3D.OfClass(typeof(View3D));
+
+                    View3D v3d = null;
+                    foreach (View3D v in col3D)
+                    {
+                        if (v.IsTemplate == false)
+                        {
+                            v3d = v;
+                            break;
+                        }
+                    }
+                    if (v3d == null)
+                    {
+                        TaskDialog.Show("경고", "3D뷰를 찾을 수 없습니다.");
+                        return;
+                    }
+
+                    ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Floors);
+                    ReferenceIntersector ri = new ReferenceIntersector(filter, FindReferenceTarget.Element, v3d);
+                    LocationPoint lp = r.Location as LocationPoint;
+                    XYZ sp = new XYZ(lp.Point.X, lp.Point.Y, lp.Point.Z + 1200 / 304.8);
+                    ReferenceWithContext rwc = ri.FindNearest(sp, -XYZ.BasisZ);
+
+                    double hitZ = 0;
+                    if (rwc != null)
+                    {
+                        Reference r1 = rwc.GetReference();
+                        XYZ hit = r1.GlobalPoint;
+                        hitZ = hit.Z;
+                    }
+
+                    SpatialElementBoundaryOptions opt = new SpatialElementBoundaryOptions();
+                    opt.SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish;
+
+                    IList<IList<BoundarySegment>> loops = r.GetBoundarySegments(opt);
+
+                    List<CurveLoop> cls = new List<CurveLoop>();
+                    foreach (IList<BoundarySegment> loop in loops)
+                    {
+                        CurveLoop cl = new CurveLoop();
+                        foreach (BoundarySegment bs in loop)
+                        {
+                            Curve c = bs.GetCurve();
+                            cl.Append(c);
+                        }
+                        cls.Add(cl);
+                    }
+
+                    Level level = Utils.FindLevel(_bottomLvStr, doc);
+                    if (level == null)
+                    {
+                        TaskDialog.Show("경고", "레벨을 선택해 주세요.");
+                        return;
+                    }
+
+                    double floorTHK = 0;
+                    double wallTHK = 0;
+                    {
+                        WallType wt = Utils.FindWallType(_wallTypeSelect, doc);
+                        if (wt == null)
+                        {
+                            TaskDialog.Show("경고", "유형을 찾을 수 없습니다.");
+                            return;
+                        }
+
+                        double wallH = Convert.ToDouble(_wallHeightInput);
+                        Parameter param = wt.get_Parameter(BuiltInParameter.WALL_ATTR_WIDTH_PARAM);
+                        wallTHK = param.AsDouble();
+
+                        foreach (CurveLoop cl in cls)
+                        {
+                            CurveLoop offLoop = CurveLoop.CreateViaOffset(cl, -wallTHK / 2, XYZ.BasisZ);
+
+                            foreach (Curve c in offLoop)
+                            {
+                                using (Transaction trans = new Transaction(doc, "벽 마감을 생성합니다."))
+                                {
+                                    trans.Start();
+                                    Wall wall = Wall.Create(doc, c, wt.Id, level.Id, wallH / 384.8, floorTHK, false, false);
+                                    Parameter upParam = wall.get_Parameter(BuiltInParameter.WALL_HEIGHT_TYPE);
+                                    Level topLevel = Utils.FindLevel(_topLvStr, doc);
+                                    if (upParam != null && topLevel != null)
+                                        upParam.Set(topLevel.Id);
+                                    trans.Commit();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2 - 룸 마감 - 천장 생성
+        private void button6_Click(object sender, EventArgs e)
+        {
+            RunRevit((uidoc, doc) =>
+            {
+                IList<Reference> refs = uidoc.Selection.PickObjects(Autodesk.Revit.UI.Selection.ObjectType.Element, new RoomFilter(), "룸을 선택하세요.");
+
+                foreach (Reference item in refs)
+                {
+                    Room r = (Room)doc.GetElement(item);
+
+                    // 룸의 SL과 3D View 찾기
+                    FilteredElementCollector col3D = new FilteredElementCollector(doc);
+                    col3D.OfClass(typeof(View3D));
+
+                    View3D v3d = null;
+                    foreach (View3D v in col3D)
+                    {
+                        if (v.IsTemplate == false)
+                        {
+                            v3d = v;
+                            break;
+                        }
+                    }
+                    if (v3d == null)
+                    {
+                        TaskDialog.Show("경고", "3D뷰를 찾을 수 없습니다.");
+                        return;
+                    }
+
+                    ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Floors);
+                    ReferenceIntersector ri = new ReferenceIntersector(filter, FindReferenceTarget.Element, v3d);
+                    LocationPoint lp = r.Location as LocationPoint;
+                    XYZ sp = new XYZ(lp.Point.X, lp.Point.Y, lp.Point.Z + 1200 / 304.8);
+                    ReferenceWithContext rwc = ri.FindNearest(sp, -XYZ.BasisZ);
+
+                    double hitZ = 0;
+                    if (rwc != null)
+                    {
+                        Reference r1 = rwc.GetReference();
+                        XYZ hit = r1.GlobalPoint;
+                        hitZ = hit.Z;
+                    }
+
+                    SpatialElementBoundaryOptions opt = new SpatialElementBoundaryOptions();
+                    opt.SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish;
+
+                    IList<IList<BoundarySegment>> loops = r.GetBoundarySegments(opt);
+
+                    List<CurveLoop> cls = new List<CurveLoop>();
+                    foreach (IList<BoundarySegment> loop in loops)
+                    {
+                        CurveLoop cl = new CurveLoop();
+                        foreach (BoundarySegment bs in loop)
+                        {
+                            Curve c = bs.GetCurve();
+                            cl.Append(c);
+                        }
+                        cls.Add(cl);
+                    }
+
+                    Level level = Utils.FindLevel(_bottomLvStr, doc);
+                    if (level == null)
+                    {
+                        TaskDialog.Show("경고", "레벨을 선택해 주세요.");
+                        return;
+                    }
+
+                    double floorTHK = 0;
+                    double wallTHK = 0;
+                    {
+                        CeilingType ct = Utils.FindCeilingType(_ceilingTypeSelect, doc);
+                        double ceilingH = Convert.ToDouble(_ceilingHeightInput);
+
+                        List<CurveLoop> offLoop = new List<CurveLoop>();
+                        foreach (CurveLoop curveloop in cls)
+                        {
+                            if (wallTHK > 0)
+                            {
+                                CurveLoop cl = CurveLoop.CreateViaOffset(curveloop, -wallTHK, XYZ.BasisZ);
+                                offLoop.Add(curveloop);
+                            }
+                            else
+                            {
+                                offLoop.Add(curveloop);
+                            }
+                        }
+
+
+                        if (ct == null)
+                        {
+                            TaskDialog.Show("경고", "유형을 찾을 수 없습니다.");
+                            return;
+                        }
+
+                        using (Transaction trans = new Transaction(doc, "천장 마감을 생성합니다."))
+                        {
+                            trans.Start();
+
+                            Ceiling c = Ceiling.Create(doc, offLoop, ct.Id, level.Id);
+                            Parameter param = c.get_Parameter(BuiltInParameter.CEILING_HEIGHTABOVELEVEL_PARAM);
+                            param.Set(ceilingH / 304.8 + floorTHK + hitZ);
+
+                            trans.Commit();
+                        }
+                    }
+                }
+            });
         }
     }
 }
